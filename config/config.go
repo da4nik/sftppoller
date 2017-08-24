@@ -2,12 +2,12 @@ package config
 
 import (
 	"os"
-	"time"
+	"strconv"
 )
 
 var (
 	// SFTPPollIntervalSeconds inteval of ftp polling (seconds)
-	SFTPPollIntervalSeconds time.Duration = 10
+	SFTPPollIntervalSeconds = 60
 
 	// SFTPAddr address
 	SFTPAddr = "localhost:2222"
@@ -31,13 +31,18 @@ var (
 	AWSBucketName = "sn-wearable-csvs"
 
 	// LogFileName - log file name
-	// LogFileName = "sftppoller.log"
 	LogFileName = ""
 )
 
 // Load - loads config from env or files
 func Load() {
-	// SFTPPollIntervalSeconds = getEnvValue("SFTP_POLL_INTERVAL_SECONDS", SFTPPollIntervalSeconds)
+	if os.Getenv("SFTP_POLL_INTERVAL_SECONDS") != "" {
+		interval, err := strconv.Atoi(os.Getenv("SFTP_POLL_INTERVAL_SECONDS"))
+		if err == nil {
+			SFTPPollIntervalSeconds = interval
+		}
+	}
+
 	SFTPAddr = getEnvValue("SFTP_ADDR", SFTPAddr)
 	SFTPUser = getEnvValue("SFTP_USER", SFTPUser)
 	SFTPPassword = getEnvValue("SFTP_PASSWORD", SFTPPassword)

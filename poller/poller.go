@@ -29,8 +29,8 @@ func startPolling(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(time.Second * config.SFTPPollIntervalSeconds):
-			logrus.Infof("Polling sftp %s.", config.SFTPAddr)
+		case <-time.After(time.Second * time.Duration(config.SFTPPollIntervalSeconds)):
+			logrus.Infof("Polling sftp %s", config.SFTPAddr)
 			pollSFTP()
 		}
 	}

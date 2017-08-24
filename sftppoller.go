@@ -12,6 +12,8 @@ import (
 )
 
 var logFile *os.File
+var version string
+var buildTime string
 
 func initLogger() {
 	// Setting up logger
@@ -35,6 +37,12 @@ func initLogger() {
 func main() {
 	config.Load()
 	initLogger()
+
+	if version != "" && buildTime != "" {
+		log.Infof("Starting sftppoller v%s build at %s", version, buildTime)
+	}
+
+	log.Infof("SFTP will be polled every %d seconds.", config.SFTPPollIntervalSeconds)
 
 	pollerCtx, pollerCancel := context.WithCancel(context.Background())
 	poller.Start(pollerCtx)
