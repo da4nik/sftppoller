@@ -7,21 +7,16 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/da4nik/sftppoller/config"
+	"github.com/da4nik/sftppoller/s3client"
 )
 
 // Upload - uploads file to S3
 func Upload(path, key string) {
 	logrus.Debugf("Uploading file %s with key %s", path, key)
 
-	creds := credentials.NewStaticCredentials(config.AWSSecretID, config.AWSSecretKey, "")
-	sess, err := session.NewSession(&aws.Config{
-		Credentials: creds,
-		Region:      aws.String("us-east-1"),
-	})
+	sess, err := s3client.GetSession()
 	if err != nil {
 		logrus.Errorf("Unable to create aws session: %s", err.Error())
 		return
@@ -37,7 +32,7 @@ func Upload(path, key string) {
 
 	result, err := uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(config.AWSBucketName),
-		Key:    aws.String(filekey(path, key)),
+		Key:    aws.String(key),
 		Body:   f,
 	})
 	if err != nil {

@@ -32,6 +32,9 @@ var (
 
 	// LogFileName - log file name
 	LogFileName = ""
+
+	// ResultFileName - resulting filename for merge
+	ResultFileName = "data.csv"
 )
 
 // Load - loads config from env or files

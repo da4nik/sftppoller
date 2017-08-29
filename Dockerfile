@@ -7,7 +7,13 @@ RUN mkdir /app && \
     glide install && \
     make build
 
+
+
+
 FROM alpine:3.5
+
+RUN apk add --no-cache ca-certificates
+
 COPY --from=build /usr/local/go/src/github.com/da4nik/sftppoller/sftppoller /app/
 WORKDIR /app
 CMD ["/app/sftppoller"]

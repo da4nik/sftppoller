@@ -7,10 +7,12 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/da4nik/sftppoller/config"
+	"github.com/da4nik/sftppoller/merger"
 	"github.com/da4nik/sftppoller/uploader"
 	"github.com/pkg/sftp"
 
@@ -18,6 +20,9 @@ import (
 )
 
 var csvFile = regexp.MustCompile(`(?i)\.csv$`)
+
+var updatedDeviceIDs map[string]bool
+var updatedDeviceIDsMutex sync.Mutex
 
 // Start - starts poller
 func Start(ctx context.Context) {
@@ -76,7 +81,14 @@ func pollSFTP() {
 		}
 
 		logrus.Debugf("Found new file: %s", walker.Path())
+		updatedDeviceIDs = make(map[string]bool)
 		processFile(sftp, walker.Path())
+	}
+
+	if len(updatedDeviceIDs) > 0 {
+		for k := range updatedDeviceIDs {
+			merger.Enqueue(k)
+		}
 	}
 }
 
@@ -104,13 +116,19 @@ func processFile(sftp *sftp.Client, file string) {
 	srcFile.Close()
 
 	logrus.Debugf("Uploading file to s3: %s", dstFilePath)
-	uploader.Upload(dstFilePath, getDeviceID(dstFilePath))
+	deviceID := strings.ToUpper(getDeviceID(dstFilePath))
+	key := filekey(dstFilePath, deviceID)
+	uploader.Upload(dstFilePath, key)
 
 	logrus.Debugf("Removing file from sftp: %s", file)
 	err = sftp.Remove(file)
 	if err != nil {
 		logrus.Errorf("Unable to delete file from sftp (%s): %s", file, err.Error())
 	}
+
+	updatedDeviceIDsMutex.Lock()
+	updatedDeviceIDs[deviceID] = true
+	updatedDeviceIDsMutex.Unlock()
 }
 
 func getDeviceID(path string) string {
@@ -130,4 +148,10 @@ func getDeviceID(path string) string {
 	}
 
 	return strings.ToUpper(parts[1])
+}
+
+func filekey(path, key string) string {
+	t := time.Now()
+	currentTimestamp := t.Format("20060102150405")
+	return filepath.Join(key, currentTimestamp+"-"+filepath.Base(path))
 }

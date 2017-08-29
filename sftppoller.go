@@ -7,6 +7,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/da4nik/sftppoller/config"
+	"github.com/da4nik/sftppoller/merger"
 	"github.com/da4nik/sftppoller/poller"
 	_ "github.com/joho/godotenv/autoload"
 )
@@ -47,6 +48,10 @@ func main() {
 	pollerCtx, pollerCancel := context.WithCancel(context.Background())
 	poller.Start(pollerCtx)
 	defer pollerCancel()
+
+	mergerCtx, mergerCancel := context.WithCancel(context.Background())
+	merger.Init(mergerCtx)
+	defer mergerCancel()
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
