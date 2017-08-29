@@ -21,7 +21,7 @@ import (
 
 var csvFile = regexp.MustCompile(`(?i)\.csv$`)
 
-var updatedDeviceIDs map[string]bool
+var updatedDeviceIDs = make(map[string]bool)
 var updatedDeviceIDsMutex sync.Mutex
 
 // Start - starts poller
@@ -67,6 +67,7 @@ func pollSFTP() {
 	}
 	defer conn.Close()
 
+	var wg sync.WaitGroup
 	walker := sftp.Walk("/")
 	for walker.Step() {
 		if err := walker.Err(); err != nil {
@@ -81,18 +82,23 @@ func pollSFTP() {
 		}
 
 		logrus.Debugf("Found new file: %s", walker.Path())
-		updatedDeviceIDs = make(map[string]bool)
-		processFile(sftp, walker.Path())
+		wg.Add(1)
+		go processFile(sftp, walker.Path(), &wg)
 	}
+	wg.Wait()
 
 	if len(updatedDeviceIDs) > 0 {
+		updatedDeviceIDsMutex.Lock()
 		for k := range updatedDeviceIDs {
 			merger.Enqueue(k)
+			delete(updatedDeviceIDs, k)
 		}
+		updatedDeviceIDsMutex.Unlock()
 	}
 }
 
-func processFile(sftp *sftp.Client, file string) {
+func processFile(sftp *sftp.Client, file string, wg *sync.WaitGroup) {
+	defer wg.Done()
 	// Open the source file
 	srcFile, err := sftp.Open(file)
 	if err != nil {
@@ -115,7 +121,6 @@ func processFile(sftp *sftp.Client, file string) {
 	dstFile.Close()
 	srcFile.Close()
 
-	logrus.Debugf("Uploading file to s3: %s", dstFilePath)
 	deviceID := strings.ToUpper(getDeviceID(dstFilePath))
 	key := filekey(dstFilePath, deviceID)
 	uploader.Upload(dstFilePath, key)

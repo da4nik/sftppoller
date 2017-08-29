@@ -39,7 +39,7 @@ func Upload(path, key string) {
 		logrus.Errorf("Failed to upload file to s3 (%s): %s", path, err.Error())
 		return
 	}
-	logrus.Debugf("File uploaded to: %s\n", result.Location)
+	logrus.Debugf("File uploaded to: %s", result.Location)
 	f.Close()
 
 	err = os.Remove(path)
