@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
-	"strings"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -21,6 +21,9 @@ import (
 )
 
 var input = make(chan string, 50)
+
+// raw file name format example: 20170829121106-wearable_csv.csv
+var rawFile = regexp.MustCompile(`(?i)\d+-(.+)\.csv$`)
 
 // Init starts merger
 func Init(ctx context.Context) {
@@ -71,7 +74,8 @@ func merge(deviceID string) {
 	var wg sync.WaitGroup
 	files := make([]string, 0)
 	for _, item := range result.Contents {
-		if strings.Index(*item.Key, config.ResultFileName) > -1 {
+		// filter out not raw files
+		if !rawFile.MatchString(*item.Key) {
 			continue
 		}
 
@@ -141,6 +145,13 @@ func mergeFiles(deviceID, resultFilename string, files []string) error {
 func download(key string, wg *sync.WaitGroup) {
 	defer wg.Done()
 
+	filename := filepath.Join(config.DownloadDir, "merger", key)
+	// if file exists, no need to download it
+	if _, err := os.Stat(filename); !os.IsNotExist(err) {
+		log().Debugf("File %s already exists", filename)
+		return
+	}
+
 	// The session the S3 Downloader will use
 	sess, err := s3client.GetSession()
 	if err != nil {
@@ -152,7 +163,6 @@ func download(key string, wg *sync.WaitGroup) {
 	downloader := s3manager.NewDownloader(sess)
 
 	// Create a file to write the S3 Object contents to.
-	filename := filepath.Join(config.DownloadDir, "merger", key)
 	os.MkdirAll(filepath.Dir(filename), os.ModePerm)
 	f, err := os.Create(filename)
 	if err != nil {
